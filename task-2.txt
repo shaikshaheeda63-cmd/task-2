@@ -1,0 +1,85 @@
+<?php
+session_start();
+
+// Database connection
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "blog";
+$conn = new mysqli($host, $user, $pass, $db);
+if ($conn->connect_error) {
+    die("❌ Connection failed: " . $conn->connect_error);
+}
+
+// Handle registration
+if (isset($_POST['register'])) {
+    $username = $_POST['username'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $stmt = $conn->prepare("INSERT INTO users (username,password) VALUES (?,?)");
+    $stmt->bind_param("ss", $username, $password);
+    $stmt->execute();
+    echo "<p>✅ Registration successful. Please login.</p>";
+}
+
+// Handle login
+if (isset($_POST['login'])) {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    $stmt = $conn->prepare("SELECT * FROM users WHERE username=?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        if (password_verify($password, $row['password'])) {
+            $_SESSION['user'] = $row['username'];
+        } else {
+            echo "<p>❌ Invalid password.</p>";
+        }
+    } else {
+        echo "<p>❌ User not found.</p>";
+    }
+}
+
+// Handle logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit();
+}
+
+// Handle create post
+if (isset($_POST['create']) && isset($_SESSION['user'])) {
+    $title = $_POST['title'];
+    $content = $_POST['content'];
+    $stmt = $conn->prepare("INSERT INTO posts (title,content,created_at) VALUES (?,?,NOW())");
+    $stmt->bind_param("ss", $title, $content);
+    $stmt->execute();
+    echo "<p>✅ Post created.</p>";
+}
+
+// Handle delete post
+if (isset($_GET['delete']) && isset($_SESSION['user'])) {
+    $id = $_GET['delete'];
+    $conn->query("DELETE FROM posts WHERE id=$id");
+    echo "<p>🗑️ Post deleted.</p>";
+}
+
+// Handle update post
+if (isset($_POST['update']) && isset($_SESSION['user'])) {
+    $id = $_POST['id'];
+    $title = $_POST['title'];
+    $content = $_POST['content'];
+    $stmt = $conn->prepare("UPDATE posts SET title=?, content=? WHERE id=?");
+    $stmt->bind_param("ssi", $title, $content, $id);
+    $stmt->execute();
+    echo "<p>✏️ Post updated.</p>";
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task-2 Blog App</title>
+</head>
+<body>
+<h2>Task-2: Basic
